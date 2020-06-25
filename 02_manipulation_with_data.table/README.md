@@ -1,17 +1,25 @@
 # Data Manipulation with `data.table`
 
-* [Overview](#overview)
-* [Installation](#installing-datatable)
-* [Basics](#datatable-basics)
-* [`i` and `j` notation](#overview)
-* [Assigning Columns](#assigning-new-columns)
-* [Subsetting](#subsetting-and-filtering)
+* [overview](#overview)
+* [installation](#installing-datatable)
+* [basics](#datatable-basics)
+* [creating a data.table](#creating-a-datatable)
+* [combintions with CJ)](#creating-combinations-with-cj)
+* [combining data.table objects](#combining-datatable-objects)
+* [data.table operations](#datatable-operations)
+* [subsetting data](#subsetting-and-filtering)
+* [column operations](#column-operations)
+* [merging data](#merging-data)
+
+***
 
 ## Overview
 
 `data.table` is an `R` package built for efficient data manipulation. It is essentially an optimized version of the standard `data.frame`.
 
 The primary benefits of `data.table` are improved and consistent syntax (once you learn how to use it) and speed/memory efficiency.
+
+***
 
 ## Installing `data.table`
 
@@ -26,44 +34,111 @@ if(!require(data.table)) {
 }
 ```
 
+Tip: You can auto-load `data.table` (or any number of packages you want) every time you start up R by editing your R Profile. By default, R looks for the file `~/.Rprofile`. Any commands in this file are ran when you start R.
+
+```sh
+# append a line to .Rprofile that auto-loads data.table
+echo "library(data.table)" >> ~/.Rprofile
+```
+
+***
+
 ## `data.table` Basics
 
 ### Creating a `data.table`
 
-You can convert a `data.frame` to a `data.table` using the function `setDT()`, e.g.:
+Creating a `data.table` is pretty much the same as creating a `data.frame`. It's still a collection of named equal-length vectors (columns that each contain one type of data). Initializing a `data.table` is simply defining the column names and contents.
+
+*NOTE*: I tend to use `dat` or `DT` as my go-to variable name for messing around with data interactively. Of course, when writing a longer reproducible script, I'll name it something more informative.
+
+```R
+# assigning a new data.table object
+dat1 <- data.table("columnName1" = c(1, 2, 4, 6, 8), "columnName2" = c("A", "B", "C", "D", "E"))
+
+# assigning another data.table
+dat2 <- data.table("randomNumber" = sample(1000), "randomDecimal" = runif(1000))
+
+# call dat1 and dat2 (run as command) to see how they look
+dat1
+dat2
+```
+
+You'll notice that a `data.table` will automatically truncate output to show the first five and last five rows, which is handy for quickly checking out a `data.table` without it taking up your entire window.
+
+An easier way to get an overview of your `data.table` is with the structure command, `str()`
+
+```R
+# check the structure of your data.tables
+str(dat1)
+str(dat2)
+```
+
+If you already have a `data.frame` object, you can convert it to a `data.table` using the function `setDT()`.
 
 ```R
 my_data <- data.frame("col1"=1:100, "col2"=sample(100, size=10))
+# check structure/format of my_data
 str(my_data)
 
 setDT(my_data)
+# re-check structure/format of my_data
 str(my_data)
 ```
 
-Note that you don't need to assign the converted `data.table` to a variable because the original object is updated by-reference.
+Two important notes to make here:
 
-I tend to use `dat` or `DT` as my go-to variable name for messing around with data interactively. Of course, when writing a longer reproducible script, I'll name it something more informative.
+1. You don't need to assign the converted `data.table` to a variable because the original object is updated by-reference.
+
+2. A `data.table` does not have row names. This is intentional, and for consistency. Some `data.frame` have row names, and some do not. A row name is ultimately unnecessary, as row names is just an oddly-implemented column. `data.table` was designed with consistency in mind, so row names do not exist. You can add the option `keep.rownames = TRUE` when using `setDT()` to include row names as a new column when converting to `data.table`:
+
+```R
+dat <- copy(mtcars)
+# view mtcars object
+dat
+
+# convert dat object from data.frame to data.table
+setDT(dat)
+
+# view your data.frame object
+dat
+
+# note that the column names were lost! Try again
+dat <- copy(mtcars)
+setDT(dat, keep.rownames = TRUE)
+
+# view your data.frame object
+dat
+
+# see that row names are kept, as row named 'rn'
+```
 
 ### Creating combinations with `CJ`
 
-You can quickly create a `data.table` with all combinations of variables using the function `CJ`.
+You can quickly create a `data.table` with all combinations of variables using the function `CJ`. This is useful when you want to expand two or more sets, generating every permutation of items within those sets.
 
 ```R
-# Using ranges
+# using ranges
 dat <- CJ("month"=1:12, "year"=2001:2019)
+dat
 
-# Using vectors
+# using vectors
 dat <- CJ("serve_in" = c("bowl", "cup", "cone"),
           "flavor" = c("chocolate", "vanilla", "strawberry"),
           "add-on" = c("sprinkles", "syrup")
          )
+dat
 # Note that the multiple line format above is just for readibility.
+
+# using variables
+dat <- CJ("uppercase" = LETTERS, "lowercase" = letters)
+dat
+
 # R ignores the white space and newlines.
 ```
 
 ### Combining data.table objects
 
-You can join two `data.table` (with same column names) using an `rbind` command, e.g.:
+You can join two `data.table` (with same column names) using an `rbind` command. Think of this as stacking multiple tables on top of each other, increasing the total number of rows, but keeping columns the same:
 
 ```R
 dat1 <- data.table("group" = "A", "name" = c("Apoorva", "Ilya", "Michael", "Cory"))
@@ -117,18 +192,174 @@ identical(dat1, dat2)
 # forced data.table to make a copy
 ```
 
-## Overview to `data.table` operations
+***
 
-## Assigning new columns with `:=`
+## `data.table` operations
+
+`data.table` operations are placed in square brackets `[]` and come after the `data.table`. Inside these brackets is three 'spots' for commands. In order, these are called `i`, `j` and `by`. Like as follows: `dat[i, j, by]`. These respectively correspond to rows, columns, and groups.
+
+Trailing commas can be omitted. That is, if you only need to perform row operations in `i`, you don't need to include any commas.
+
+If you only want to perform column operations in `j`, then you need to include the leading comma (whether or not you are doing any row operations in `i`, e.g. `dat[, sum(N)]`.
+
+Essentially, commands in `i` are for subsetting rows, while commands in `j` are for assigning or performing operations on columns. When `by` is included, all operations are aggregated within `by` groups (explanation coming later).
+
+***
 
 ## Subsetting and filtering
 
-## Row operations in `i`
+You can look at a subset of your data or run filters using equality testing statements, such as `==`, `>=` and `!=`. These are placed in `i` because the test evaluates for which rows your test returns `TRUE`. Think of it as multiple steps:
 
-## Column operations in `j`
+1. First your test is evaluated on every row, returning either `TRUE` OR `FALSE`
 
-## Aggregate/group operations: `by`
+2. All of your tests return a single vector (with length equal to the number of rows in your `data.table`) containing these boolean values
 
-## Chaining operations
+3. The boolean vector is plugged into `i` for your `data.table` and only those which are `TRUE` are returned.
 
-## Advanced operations: `.SD`
+```R
+set.seed(40)
+dat <- data.table("col1" = 1:1000, "col2" = sample(1000))
+
+# for which rows is col2 > col1
+# easy way to do it
+dat[col2 > col1]
+
+# harder way to do it, how it 'works' behind the scenes
+boolean_values <- dat$col2 > dat$col1
+
+# check what boolean_values looks like
+dat[boolean_values]
+```
+
+You can also include numbers in `i` to subset only the row numbers you want.
+
+```R
+# initialize data.table
+dat <- data.table("N" = 1:1000, "value" = runif(1000))
+
+# only print odd rows 300 through 500:
+dat[300:500]
+```
+
+***
+
+## Column operations
+
+`j` is where the 'meat' of your operations will go. This is where you define calculations to run, such as calculating means or quantiles, adding values together, finding a maximum, etc. It can be combined with `by` to do calculations for each combination of groups in `by`.
+
+```R
+dat <- data.table("N" = 1:30,
+            "color" = sample(c("red", "blue", "yellow"), size = 30, replace = TRUE),
+            "size" = sample(c("S", "M", "L", "XL"), size = 130, replace = TRUE))
+
+# what is the highest value of N for each color?
+dat[, list("highest_N" = max(N)), by=list(color)]
+
+# what is the highest value of N for each size?
+dat[, list("highest_N" = max(N)), by=list(size)]
+
+# what is the highest value of N for each combination of color and size?
+dat[, list("highest_N" = max(N)), by=list(color, size)]
+```
+
+You're not limited to just one operation in `j`. You can include as many as you want:
+
+```R
+# doing a whole bunch of stuff in i, j, and by
+dat[N %% 2 == 0, list(
+    "highest_N" = max(N),
+    "lowest_N" = min(N),
+    "median_N" = median(N),
+    "sum_of_N" = sum(N)
+    ), by=list(color, size)]
+```
+
+Operations in `j` is also how you assign new columns:
+
+```R
+dat <- data.table("N" = 1:1000)
+dat[, "column 2" := "new_value"]
+```
+
+What if we also include subsetting in `i` when assigning a new column?
+
+```R
+dat <- data.table("N" = 1:1000)
+# what do you think will happen?
+dat[N %% 5 == 0, "column 2" := "multiple of five"]
+```
+
+Putting it together, you can assign values to a new column, conditional on other column values:
+
+```R
+# Initialize a data.table with 500 individuals
+dat <- data.table("indiv_id" = 1:500)
+
+# let's simulate some genotypes
+dat[, genotype := "AA"]
+
+# Let's simulate more realistic genotypes.
+# First, delete the genotypes column
+dat[, genotype := NULL]
+
+# Draw alleles
+dat[, allele1 := sample(c("A", "a"), replace=TRUE, size=500)]
+dat[, allele2 := sample(c("A", "a"), replace=TRUE, size=500)]
+
+# assign genotypes conditionally
+dat[allele1 == "A" & allele2 == "A", genotype := "HomMajor"]
+dat[allele1 == "A" & allele2 == "a", genotype := "Het"]
+dat[allele1 == "a" & allele2 == "A", genotype := "Het"]
+dat[allele1 == "a" & allele2 == "a", genotype := "HomMonor"]
+```
+
+### Merging data
+
+You can quickly merge two `data.table` together using one or more columns as keys. Think of keys as group identifiers, or explanatory variables. Measurements or response variables are unlikely to be keys. With genome data, it's common to use chromosome and base pair position as keys, because these pieces of information (together) uniquely identify a genome position.
+
+```R
+# Make a fake VCF-style file
+dat <- CJ("CHR" = 1:5, "POS" = 1:10000)
+
+# assign random reference and alternate alleles
+dat[, REF := sample(c("C","G","T","A"), size=nrow(dat), replace = TRUE)]
+dat[, ALT := sample(c("C","G","T","A"), size=nrow(dat), replace = TRUE)]
+
+# remove rows where ref == alt
+dat <- dat[REF != ALT]
+
+# subset random 2% of rows
+dat_subset<- dat[sample(.N, size=nrow(dat)*0.02)]
+
+# at this point, rows are all out of order.
+# set key on CHR
+setkey(dat_subset, CHR)
+
+# CHR is now ordered appropriately... but POS isn't
+setkey(dat_subset, POS)
+
+# Now only POS is in order. IMPORTANT NOTE: all keys must be
+# defined at the same time. using setkey() removes previous keys.
+
+# setkey on both CHR and POS, in that order
+setkey(dat_subset, CHR, POS)
+
+# check out your data.table
+dat_subset
+
+# say you have a separate file with sites of interest, with p-values
+sites_of_interest <- dat[sample(.N, size=nrow(dat)*0.5)]
+sites_of_interest[, c("REF","ALT") := NULL]
+sites_of_interest[, P := runif(.N)]
+sites_of_interest <- sites_of_interest[P < 0.05]
+setkey(sites_of_interest, CHR, POS)
+
+dat.merged <- merge(dat_subset, sites_of_interest)
+
+```
+
+***
+
+### `.SD` and `apply`
+
+Advanced topics. Release TBD. there's already too much
