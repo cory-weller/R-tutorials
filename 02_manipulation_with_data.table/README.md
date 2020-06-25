@@ -8,8 +8,10 @@
 * [combining data.table objects](#combining-datatable-objects)
 * [data.table operations](#datatable-operations)
 * [subsetting data](#subsetting-and-filtering)
+* [advanced filtering](#advanced-filtering)
 * [column operations](#column-operations)
 * [merging data](#merging-data)
+* [more](#sd-and-apply)
 
 ***
 
@@ -196,7 +198,17 @@ identical(dat1, dat2)
 
 ## `data.table` operations
 
-`data.table` operations are placed in square brackets `[]` and come after the `data.table`. Inside these brackets is three 'spots' for commands. In order, these are called `i`, `j` and `by`. Like as follows: `dat[i, j, by]`. These respectively correspond to rows, columns, and groups.
+`data.table` operations are placed in square brackets `[]` and come after the `data.table`. Inside these brackets is three 'spots' for commands. In order, these are called `i`, `j` and `by`.
+
+I like to think of it like this:
+
+1. subset rows according to `i`
+
+2. perform calculations according to `j`
+
+3. separated into groups according to `by`
+
+Like as follows: `dat[i, j, by]`. These respectively correspond to rows, columns, and groups.
 
 Trailing commas can be omitted. That is, if you only need to perform row operations in `i`, you don't need to include any commas.
 
@@ -207,6 +219,13 @@ Essentially, commands in `i` are for subsetting rows, while commands in `j` are 
 ***
 
 ## Subsetting and filtering
+
+Filtering your data (subsetting rows) in `i` is done by providing either a vector of row numbers to include, or a vector of boolean (`TRUE`, `FALSE`) values.
+
+```R
+dat <- data.table("N" = 1:1000, "col1" = runif(1000))
+dat
+```
 
 You can look at a subset of your data or run filters using equality testing statements, such as `==`, `>=` and `!=`. These are placed in `i` because the test evaluates for which rows your test returns `TRUE`. Think of it as multiple steps:
 
@@ -243,9 +262,62 @@ dat[300:500]
 
 ***
 
+## Advanced filtering
+
+Two advanced ways of filtering includes the operators `%like%` and `%in%`. These can be used similar to `==` and `>=` operators.
+
+`%like%` performs a substring search, returning `TRUE` if a match (or partial match) is found.
+
+```R
+dat <- data.table(
+                "N" = 1:1000,
+                "fruit" = sample(c("apricot", "apple", "orange", "banana"), size = 1000, replace = TRUE)
+                )
+
+dat[fruit %like% "ap"]
+dat[fruit %like% "a"]
+
+# regular expressions are supported
+dat[fruit %like% "^o"]
+```
+
+`%in%` returns `TRUE` for rows that contain a value within a larger specified set:
+
+```R
+dat <- data.table(
+                "N" = 1:1000,
+                "fruit" = sample(c("apricot", "apple", "orange", "banana"), size = 1000, replace = TRUE)
+                )
+
+dat[fruit %in% c("apple", "banana")]
+
+# note this is essentially a short-hand way of checking many == operations separated by OR
+dat[fruit == "apple" | fruit == "banana"]
+```
+
 ## Column operations
 
 `j` is where the 'meat' of your operations will go. This is where you define calculations to run, such as calculating means or quantiles, adding values together, finding a maximum, etc. It can be combined with `by` to do calculations for each combination of groups in `by`.
+
+You can specify a set of column names to simply subset your data by column
+
+```R
+# build example data set
+dat <- copy(mtcars)
+setDT(dat, keep.rownames = TRUE)
+
+# subset by column by specifying list of column names
+dat[, list(rn, mpg, disp, carb)]
+dat[, list(rn)]
+
+# shorthand to return a column as a VECTOR
+dat[, rn]
+
+# is the same as
+dat$rn
+```
+
+Examples of performing calculations in `j`:
 
 ```R
 dat <- data.table("N" = 1:30,
@@ -274,11 +346,16 @@ dat[N %% 2 == 0, list(
     ), by=list(color, size)]
 ```
 
-Operations in `j` is also how you assign new columns:
+Operations in `j` is also how you assign new columns with `:=`
 
 ```R
 dat <- data.table("N" = 1:1000)
-dat[, "column 2" := "new_value"]
+dat[, "column_2" := "new_value"]
+
+# when referring to columns as variables within j,
+# you do not put quotes around them
+dat[, "column_3" := N**2]
+dat[, "column_4" := N - column_3]
 ```
 
 What if we also include subsetting in `i` when assigning a new column?
@@ -355,7 +432,6 @@ sites_of_interest <- sites_of_interest[P < 0.05]
 setkey(sites_of_interest, CHR, POS)
 
 dat.merged <- merge(dat_subset, sites_of_interest)
-
 ```
 
 ***
