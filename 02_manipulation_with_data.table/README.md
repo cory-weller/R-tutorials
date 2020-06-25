@@ -4,7 +4,7 @@
 * [installation](#installing-datatable)
 * [basics](#datatable-basics)
 * [creating a data.table](#creating-a-datatable)
-* [combintions with CJ)](#creating-combinations-with-cj)
+* [combintions with CJ](#creating-combinations-with-cj)
 * [combining data.table objects](#combining-datatable-objects)
 * [data.table operations](#datatable-operations)
 * [subsetting data](#subsetting-and-filtering)
