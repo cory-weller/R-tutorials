@@ -322,7 +322,7 @@ Examples of performing calculations in `j`:
 ```R
 dat <- data.table("N" = 1:30,
             "color" = sample(c("red", "blue", "yellow"), size = 30, replace = TRUE),
-            "size" = sample(c("S", "M", "L", "XL"), size = 130, replace = TRUE))
+            "size" = sample(c("S", "M", "L", "XL"), size = 30, replace = TRUE))
 
 # what is the highest value of N for each color?
 dat[, list("highest_N" = max(N)), by=list(color)]
@@ -387,7 +387,7 @@ dat[, allele2 := sample(c("A", "a"), replace=TRUE, size=500)]
 dat[allele1 == "A" & allele2 == "A", genotype := "HomMajor"]
 dat[allele1 == "A" & allele2 == "a", genotype := "Het"]
 dat[allele1 == "a" & allele2 == "A", genotype := "Het"]
-dat[allele1 == "a" & allele2 == "a", genotype := "HomMonor"]
+dat[allele1 == "a" & allele2 == "a", genotype := "HomMinor"]
 ```
 
 ### Merging data
